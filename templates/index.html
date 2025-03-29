@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- SEO 基础优化 -->
+    <title>破竹财经导航</title>
+    <meta name="description" content="破竹财经导航是一个专业的网址导航平台，为用户提供优质的网站分类导航服务。涵盖常用工具、学习资源、技术文档、开发工具等多个分类，帮助用户快速找到并访问所需网站。">
+    <meta name="keywords" content="破竹财经导航,网址导航,上网导航,技术导航,资源导航,工具导航,学习导航,实用网站,精选网址,优质资源">
+    
+    <!-- Open Graph 标签增强 -->
+    <meta property="og:title" content="破竹财经导航 - 精选优质网站资源导航">
+    <meta property="og:description" content="专业的网址导航平台，提供优质网站分类导航服务，涵盖财经、科技、教育、生活等多个分类。">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="破竹财经导航">
+    <meta property="og:locale" content="zh_CN">
+    
+    <!-- 移动设备优化 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- 搜索引擎优化 -->
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="baiduspider" content="index,follow">
+    <meta name="author" content="破竹财经导航">
+    <meta name="copyright" content="破竹财经导航">
+    <link rel="canonical" href="{{ request.url }}">
+    
+    <!-- DNS预解析 -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
+    
+    <!-- 字体加载优化 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            margin-bottom: 3rem;
+        }
+
+        .search-box {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #searchInput:focus {
+            border-color: #3498db;
+        }
+
+        .category {
+            margin-bottom: 3rem;
+        }
+
+        .category h2 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #eee;
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .link-card {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .link-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .link-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .link-content h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+            color: #2c3e50;
+        }
+
+        .link-content p {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        footer {
+            text-align: center;
+            padding-top: 2rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .links-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 添加搜索结果样式 */
+        .search-results {
+            max-width: 600px;
+            margin: 1rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .results-count {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .search-tips {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+
+        .search-tips li {
+            color: #666;
+            margin: 0.5rem 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .search-tips li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #3498db;
+        }
+
+        .category {
+            transition: opacity 0.3s ease;
+        }
+
+        .category.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <!-- 使用语义化标签和关键词 -->
+            <h1>破竹财经导航</h1>
+            <p class="subtitle">精选优质网站资源，提供便捷的网址导航服务</p>
+        </header>
+
+        <main>
+            <section class="search-section" aria-label="站内搜索">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索网站..." aria-label="搜索网站">
+                </div>
+                <!-- 添加搜索结果提示区域 -->
+                <div id="searchResults" class="search-results" style="display: none;">
+                    <p class="results-count"></p>
+                    <div class="no-results" style="display: none;">
+                        <p>抱歉，没有找到相关结果</p>
+                        <ul class="search-tips">
+                            <li>请检查输入是否正确</li>
+                            <li>尝试使用更简短的关键词</li>
+                            <li>使用其他相关词语搜索</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            {% for category in categories %}
+            <section class="category" aria-label="{{ category.name }}分类">
+                <h2>{{ category.name }}</h2>
+                <div class="links-grid">
+                    {% for link in category.links %}
+                    <a href="{{ link.url }}" class="link-card" target="_blank" rel="noopener" aria-label="{{ link.title }} - {{ link.description }}">
+                        <div class="link-icon" aria-hidden="true">{{ link.icon or '🔗' }}</div>
+                        <div class="link-content">
+                            <h3>{{ link.title }}</h3>
+                            <p>{{ link.description }}</p>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        </main>
+
+        <footer>
+            <!-- 添加版权信息和相关链接 -->
+            <p>&copy; 破竹APP | <a href="{{ url_for('login') }}" style="color: inherit; text-decoration: none;">管理入口</a></p>
+            <p class="seo-text" style="font-size: 0.8rem; color: #999; margin-top: 1rem;">
+                本站致力于为用户提供优质的网站导航服务，精选各类实用工具和学习资源，帮助用户快速找到所需网站。
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // 搜索功能
+        const searchInput = document.getElementById('searchInput');
+        const linkCards = document.querySelectorAll('.link-card');
+        const categories = document.querySelectorAll('.category');
+        const searchResults = document.getElementById('searchResults');
+        const resultsCount = document.querySelector('.results-count');
+        const noResults = document.querySelector('.no-results');
+
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            let totalResults = 0;
+            let hasResults = false;
+
+            // 如果搜索框为空，恢复原始显示状态
+            if (searchTerm === '') {
+                searchResults.style.display = 'none';
+                categories.forEach(category => {
+                    category.classList.remove('hidden');
+                });
+                linkCards.forEach(card => {
+                    card.style.display = 'flex';
+                });
+                return;
+            }
+
+            // 显示搜索结果区域
+            searchResults.style.display = 'block';
+
+            // 遍历所有分类
+            categories.forEach(category => {
+                const cardsInCategory = category.querySelectorAll('.link-card');
+                let categoryHasResults = false;
+
+                cardsInCategory.forEach(card => {
+                    const title = card.querySelector('h3').textContent.toLowerCase();
+                    const description = card.querySelector('p').textContent.toLowerCase();
+                    
+                    if (title.includes(searchTerm) || description.includes(searchTerm)) {
+                        card.style.display = 'flex';
+                        categoryHasResults = true;
+                        totalResults++;
+                        hasResults = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // 控制分类的显示/隐藏
+                if (categoryHasResults) {
+                    category.classList.remove('hidden');
+                } else {
+                    category.classList.add('hidden');
+                }
+            });
+
+            // 更新搜索结果提示
+            if (hasResults) {
+                resultsCount.textContent = `找到 ${totalResults} 个相关结果`;
+                noResults.style.display = 'none';
+            } else {
+                resultsCount.textContent = '';
+                noResults.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html> 
