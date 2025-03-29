@@ -146,6 +146,30 @@ def delete_link(id):
     db.session.commit()
     return jsonify({'status': 'success'})
 
+# 路由：修改密码
+@app.route('/admin/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not check_password_hash(current_user.password_hash, current_password):
+            flash('当前密码错误')
+            return redirect(url_for('change_password'))
+            
+        if new_password != confirm_password:
+            flash('新密码和确认密码不匹配')
+            return redirect(url_for('change_password'))
+            
+        current_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+        db.session.commit()
+        flash('密码修改成功')
+        return redirect(url_for('admin_dashboard'))
+        
+    return render_template('admin/change_password.html')
+
 # 路由：退出登录
 @app.route('/logout')
 @login_required
