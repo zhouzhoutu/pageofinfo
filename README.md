@@ -88,6 +88,6 @@
 
 ## 联系方式
 
-- 项目维护者：破竹科技
-- 官方网站：[破竹财经导航](https://your-domain.com)
+
+
 - 电子邮件：contact@your-domain.com 
