@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理员登录</title>
+    <title>管理员登录 - {{ site_name }}</title>
     <style>
         body {
             font-family: 'Noto Sans SC', sans-serif;
@@ -38,9 +38,13 @@
         input {
             width: 100%;
             padding: 0.8rem;
-            border: 1px solid #ddd;
+            border: 2px solid #ddd;
             border-radius: 4px;
             font-size: 1rem;
+        }
+        input:focus {
+            border-color: #3498db;
+            outline: none;
         }
         button {
             width: 100%;
@@ -51,46 +55,45 @@
             border-radius: 4px;
             font-size: 1rem;
             cursor: pointer;
-            margin-top: 1rem;
+            transition: background 0.3s;
         }
         button:hover {
             background: #2980b9;
         }
-        .flash-messages {
+        .error {
+            color: #e74c3c;
+            text-align: center;
             margin-bottom: 1rem;
         }
-        .flash-message {
-            padding: 0.8rem;
-            background: #e74c3c;
-            color: white;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
+        .back-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+        .back-link a {
+            color: #7f8c8d;
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            color: #34495e;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <h1>管理员登录</h1>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for message in messages %}
-                        <div class="flash-message">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
         <form method="POST">
             <div class="form-group">
-                <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">密码</label>
+                <label for="password">管理员密码</label>
                 <input type="password" id="password" name="password" required>
             </div>
             <button type="submit">登录</button>
         </form>
+        <div class="back-link">
+            <a href="/">返回首页</a>
+        </div>
     </div>
 </body>
 </html> 

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /static/admin/
+
+# Sitemap
+Sitemap: https://nav.pozhu.cc/sitemap.xml 

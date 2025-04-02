@@ -1,105 +1,237 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime
+import json
+from urllib.parse import urljoin
+from dotenv import load_dotenv
+import hashlib
+import requests
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///navigation.db')
-# 设置密码哈希方法
-app.config['SECURITY_PASSWORD_HASH'] = 'sha256'
-app.config['SECURITY_PASSWORD_SALT'] = 'your-salt-here'
-db = SQLAlchemy(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+# 加载环境变量
+load_dotenv()
 
-# 数据模型
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+app = Flask(__name__, 
+           static_url_path='',  # 设置空的静态文件URL路径
+           static_folder='static',  # 静态文件目录
+           template_folder='templates')  # 模板文件目录
 
-class Category(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), nullable=False)
-    order = db.Column(db.Integer, default=0)
-    links = db.relationship('Link', backref='category', lazy=True)
+# 基础配置
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key')
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+SITE_NAME = os.environ.get('SITE_NAME', '破竹财经导航')
+SITE_DESCRIPTION = os.environ.get('SITE_DESCRIPTION', '一站式财经信息导航平台')
 
-class Link(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(80), nullable=False)
-    description = db.Column(db.String(200))
-    url = db.Column(db.String(200), nullable=False)
-    icon = db.Column(db.String(50))  # 存储图标emoji或图标类名
-    order = db.Column(db.Integer, default=0)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+# Vercel API 配置
+VERCEL_TOKEN = os.environ.get('VERCEL_TOKEN')
+VERCEL_PROJECT_ID = os.environ.get('VERCEL_PROJECT_ID')
+VERCEL_TEAM_ID = os.environ.get('VERCEL_TEAM_ID')
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+def hash_password(password):
+    """对密码进行哈希处理"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def get_admin_password():
+    """获取管理员密码"""
+    return os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+def update_vercel_env(new_password_hash):
+    """更新 Vercel 环境变量"""
+    if not VERCEL_TOKEN or not VERCEL_PROJECT_ID:
+        return False, "Vercel API 配置缺失"
+
+    headers = {
+        'Authorization': f'Bearer {VERCEL_TOKEN}',
+        'Content-Type': 'application/json',
+    }
+    
+    # Vercel API endpoint
+    if VERCEL_TEAM_ID:
+        url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env?teamId={VERCEL_TEAM_ID}'
+    else:
+        url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env'
+
+    # 更新环境变量
+    data = {
+        "key": "ADMIN_PASSWORD",
+        "value": new_password_hash,
+        "type": "encrypted",
+        "target": ["production", "preview", "development"]
+    }
+
+    try:
+        # 先删除旧的环境变量
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            envs = response.json()
+            for env in envs.get('envs', []):
+                if env['key'] == 'ADMIN_PASSWORD':
+                    delete_url = f"{url}/{env['id']}"
+                    requests.delete(delete_url, headers=headers)
+
+        # 添加新的环境变量
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code in [200, 201]:
+            return True, "密码更新成功"
+        return False, f"更新失败: {response.text}"
+    except Exception as e:
+        return False, f"更新失败: {str(e)}"
+
+# 环境配置
+app.debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+
+def load_config():
+    """加载导航配置"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'navigation.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "site_name": SITE_NAME,
+            "site_description": SITE_DESCRIPTION,
+            "categories": []
+        }
+
+def save_config(config):
+    """保存导航配置"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'navigation.json')
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=4)
+
+# SEO相关路由
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory(app.static_folder, 'robots.txt')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """生成网站地图"""
+    pages = []
+    
+    # 添加首页
+    pages.append({
+        'loc': BASE_URL,
+        'lastmod': datetime.now().strftime('%Y-%m-%d'),
+        'priority': '1.0'
+    })
+    
+    # 获取所有分类页面
+    config = load_config()
+    for category in config.get('categories', []):
+        # 这里可以根据实际情况添加分类页面的URL
+        pass
+
+    # 生成XML
+    xml = render_template('sitemap.xml', pages=pages)
+    return Response(xml, mimetype='application/xml')
 
 # 路由：前端页面
 @app.route('/')
 def index():
-    categories = Category.query.order_by(Category.order).all()
-    return render_template('index.html', categories=categories)
+    config = load_config()
+    return render_template('index.html', 
+                         categories=config.get('categories', []),
+                         site_name=config.get('site_name', SITE_NAME),
+                         site_description=config.get('site_description', SITE_DESCRIPTION))
 
 @app.route('/finance-nav')
 def finance_nav():
-    categories = Category.query.order_by(Category.order).all()
-    return render_template('index.html', categories=categories)
+    return redirect(url_for('index'))
 
-# 路由：管理员登录
+# 静态文件路由
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
+
+# 后台管理路由
 @app.route('/admin/login', methods=['GET', 'POST'])
-def login():
+def admin_login():
     if request.method == 'POST':
-        username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
+        stored_password = get_admin_password()
         
-        if user and check_password_hash(user.password_hash, password):
-            login_user(user)
+        # 验证密码
+        if hash_password(password) == stored_password or password == stored_password:
+            session['admin'] = True
             return redirect(url_for('admin_dashboard'))
-        flash('请输入正确的用户名或密码')
-    return render_template('admin/login.html')
+        return render_template('admin/login.html', 
+                             error='密码错误',
+                             site_name=SITE_NAME)
+    return render_template('admin/login.html', site_name=SITE_NAME)
 
-# 路由：管理后台
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin', None)
+    return redirect(url_for('index'))
+
 @app.route('/admin')
-@login_required
 def admin_dashboard():
-    categories = Category.query.order_by(Category.order).all()
-    return render_template('admin/dashboard.html', categories=categories)
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+    config = load_config()
+    return render_template('admin/dashboard.html', 
+                         config=json.dumps(config, ensure_ascii=False, indent=4),
+                         site_name=config.get('site_name', SITE_NAME))
+
+@app.route('/admin/save', methods=['POST'])
+def admin_save_config():
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+    try:
+        config = json.loads(request.form.get('config'))
+        save_config(config)
+        return render_template('admin/dashboard.html', 
+                             config=json.dumps(config, ensure_ascii=False, indent=4),
+                             site_name=config.get('site_name', SITE_NAME),
+                             success='配置已保存')
+    except json.JSONDecodeError:
+        return render_template('admin/dashboard.html', 
+                             config=request.form.get('config'),
+                             site_name=SITE_NAME,
+                             error='JSON 格式错误')
+
+# API：配置管理
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    return jsonify(load_config())
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    config = request.get_json()
+    save_config(config)
+    return jsonify({"status": "success"})
 
 # API：分类管理
 @app.route('/admin/category', methods=['POST'])
 @login_required
 def add_category():
     name = request.form.get('name')
-    order = request.form.get('order', 0)
-    category = Category(name=name, order=order)
-    db.session.add(category)
-    db.session.commit()
+    category = {'name': name, 'links': []}
+    config = load_config()
+    config['categories'].append(category)
+    save_config(config)
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/category/<int:id>', methods=['PUT'])
 @login_required
 def update_category(id):
-    category = Category.query.get_or_404(id)
+    config = load_config()
+    category = config['categories'][id]
     data = request.get_json()
-    category.name = data.get('name', category.name)
-    category.order = data.get('order', category.order)
-    db.session.commit()
+    category['name'] = data.get('name', category['name'])
+    save_config(config)
     return jsonify({'status': 'success'})
 
 @app.route('/admin/category/<int:id>', methods=['DELETE'])
 @login_required
 def delete_category(id):
-    category = Category.query.get_or_404(id)
-    db.session.delete(category)
-    db.session.commit()
+    config = load_config()
+    del config['categories'][id]
+    save_config(config)
     return jsonify({'status': 'success'})
 
 # API：链接管理
@@ -111,65 +243,82 @@ def add_link():
     url = request.form.get('url')
     icon = request.form.get('icon')
     category_id = request.form.get('category_id')
-    order = request.form.get('order', 0)
-    
-    link = Link(
-        title=title,
-        description=description,
-        url=url,
-        icon=icon,
-        category_id=category_id,
-        order=order
-    )
-    db.session.add(link)
-    db.session.commit()
+    config = load_config()
+    category = config['categories'][int(category_id)]
+    category['links'].append({
+        'title': title,
+        'description': description,
+        'url': url,
+        'icon': icon
+    })
+    save_config(config)
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/link/<int:id>', methods=['PUT'])
 @login_required
 def update_link(id):
-    link = Link.query.get_or_404(id)
+    config = load_config()
+    link = config['categories'][id]['links'][id]
     data = request.get_json()
-    link.title = data.get('title', link.title)
-    link.description = data.get('description', link.description)
-    link.url = data.get('url', link.url)
-    link.icon = data.get('icon', link.icon)
-    link.order = data.get('order', link.order)
-    link.category_id = data.get('category_id', link.category_id)
-    db.session.commit()
+    link['title'] = data.get('title', link['title'])
+    link['description'] = data.get('description', link['description'])
+    link['url'] = data.get('url', link['url'])
+    link['icon'] = data.get('icon', link['icon'])
+    save_config(config)
     return jsonify({'status': 'success'})
 
 @app.route('/admin/link/<int:id>', methods=['DELETE'])
 @login_required
 def delete_link(id):
-    link = Link.query.get_or_404(id)
-    db.session.delete(link)
-    db.session.commit()
+    config = load_config()
+    del config['categories'][id]['links'][id]
+    save_config(config)
     return jsonify({'status': 'success'})
 
 # 路由：修改密码
 @app.route('/admin/change-password', methods=['GET', 'POST'])
-@login_required
 def change_password():
+    if not session.get('admin'):
+        return redirect(url_for('admin_login'))
+    
     if request.method == 'POST':
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
         
-        if not check_password_hash(current_user.password_hash, current_password):
-            flash('当前密码错误')
-            return redirect(url_for('change_password'))
-            
-        if new_password != confirm_password:
-            flash('新密码和确认密码不匹配')
-            return redirect(url_for('change_password'))
-            
-        current_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
-        db.session.commit()
-        flash('密码修改成功')
-        return redirect(url_for('admin_dashboard'))
+        stored_password = get_admin_password()
         
-    return render_template('admin/change_password.html')
+        # 验证当前密码
+        if hash_password(current_password) != stored_password and current_password != stored_password:
+            return render_template('admin/change_password.html',
+                                error='当前密码错误',
+                                site_name=SITE_NAME)
+        
+        # 验证新密码
+        if new_password != confirm_password:
+            return render_template('admin/change_password.html',
+                                error='两次输入的新密码不一致',
+                                site_name=SITE_NAME)
+        
+        if len(new_password) < 8:
+            return render_template('admin/change_password.html',
+                                error='新密码长度不能少于8个字符',
+                                site_name=SITE_NAME)
+        
+        # 更新密码
+        new_password_hash = hash_password(new_password)
+        success, message = update_vercel_env(new_password_hash)
+        
+        if success:
+            return render_template('admin/change_password.html',
+                                success='密码修改成功，请在几分钟后重新登录',
+                                site_name=SITE_NAME)
+        else:
+            return render_template('admin/change_password.html',
+                                error=f'密码修改失败: {message}',
+                                site_name=SITE_NAME)
+    
+    return render_template('admin/change_password.html', site_name=SITE_NAME)
 
 # 路由：退出登录
 @app.route('/logout')
@@ -179,14 +328,11 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # 创建默认管理员账户（如果不存在）
-        if not User.query.filter_by(username='admin').first():
-            admin = User(
-                username='admin',
-                password_hash=generate_password_hash('admin123', method='pbkdf2:sha256')
-            )
-            db.session.add(admin)
-            db.session.commit()
-    app.run(debug=True) 
+    # 确保配置文件存在
+    if not os.path.exists(os.path.join(os.path.dirname(__file__), 'config', 'navigation.json')):
+        save_config({
+            "site_name": SITE_NAME,
+            "site_description": SITE_DESCRIPTION,
+            "categories": []
+        })
+    app.run(debug=app.debug) 

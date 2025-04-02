@@ -1,0 +1,57 @@
+{
+    "site_name": "破竹财经导航",
+    "site_description": "一站式财经信息导航平台",
+    "categories": [
+        {
+            "name": "财经讯",
+            "links": [
+                {
+                    "title": "东方财富网",
+                    "description": "财经门户网站",
+                    "url": "https://www.eastmoney.com",
+                    "icon": "📈"
+                },
+                {
+                    "title": "雪球",
+                    "description": "股票社区",
+                    "url": "https://xueqiu.com",
+                    "icon": "❄️"
+                }
+            ]
+        },
+        {
+            "name": "投资工具",
+            "links": [
+                {
+                    "title": "理杏仁",
+                    "description": "专业的投资研究工具",
+                    "url": "https://www.lixinger.com",
+                    "icon": "🔍"
+                },
+                {
+                    "title": "集思录",
+                    "description": "投资者社区",
+                    "url": "https://www.jisilu.cn",
+                    "icon": "📊"
+                }
+            ]
+        },
+        {
+            "name": "行情数据",
+            "links": [
+                {
+                    "title": "英为财情",
+                    "description": "全球市场数据",
+                    "url": "https://cn.investing.com",
+                    "icon": "🌐"
+                },
+                {
+                    "title": "TradingView",
+                    "description": "专业图表工具",
+                    "url": "https://www.tradingview.com",
+                    "icon": "📊"
+                }
+            ]
+        }
+    ]
+}
