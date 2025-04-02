@@ -29,6 +29,24 @@ VERCEL_TOKEN = os.environ.get('VERCEL_TOKEN')
 VERCEL_PROJECT_ID = os.environ.get('VERCEL_PROJECT_ID')
 VERCEL_TEAM_ID = os.environ.get('VERCEL_TEAM_ID')
 
+# 默认配置
+DEFAULT_CONFIG = {
+    "site_name": SITE_NAME,
+    "site_description": SITE_DESCRIPTION,
+    "categories": [
+        {
+            "name": "财经资讯",
+            "links": [
+                {
+                    "name": "东方财富网",
+                    "url": "https://www.eastmoney.com/",
+                    "description": "中国领先的财经网站"
+                }
+            ]
+        }
+    ]
+}
+
 def hash_password(password):
     """对密码进行哈希处理"""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -53,7 +71,6 @@ def update_vercel_env(new_password_hash):
     else:
         url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env'
 
-    # 更新环境变量
     data = {
         "key": "ADMIN_PASSWORD",
         "value": new_password_hash,
@@ -62,7 +79,6 @@ def update_vercel_env(new_password_hash):
     }
 
     try:
-        # 先删除旧的环境变量
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             envs = response.json()
@@ -71,7 +87,6 @@ def update_vercel_env(new_password_hash):
                     delete_url = f"{url}/{env['id']}"
                     requests.delete(delete_url, headers=headers)
 
-        # 添加新的环境变量
         response = requests.post(url, headers=headers, json=data)
         if response.status_code in [200, 201]:
             return True, "密码更新成功"
@@ -84,23 +99,52 @@ app.debug = os.environ.get('FLASK_DEBUG', '0') == '1'
 
 def load_config():
     """加载导航配置"""
-    config_path = os.path.join(os.path.dirname(__file__), 'config', 'navigation.json')
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {
-            "site_name": SITE_NAME,
-            "site_description": SITE_DESCRIPTION,
-            "categories": []
-        }
+        config_json = os.environ.get('NAVIGATION_CONFIG')
+        if config_json:
+            return json.loads(config_json)
+        return DEFAULT_CONFIG
+    except (json.JSONDecodeError, TypeError):
+        return DEFAULT_CONFIG
 
 def save_config(config):
     """保存导航配置"""
-    config_path = os.path.join(os.path.dirname(__file__), 'config', 'navigation.json')
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    with open(config_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=4)
+    try:
+        config_json = json.dumps(config, ensure_ascii=False)
+        if VERCEL_TOKEN and VERCEL_PROJECT_ID:
+            headers = {
+                'Authorization': f'Bearer {VERCEL_TOKEN}',
+                'Content-Type': 'application/json',
+            }
+            
+            url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env'
+            if VERCEL_TEAM_ID:
+                url += f'?teamId={VERCEL_TEAM_ID}'
+
+            data = {
+                "key": "NAVIGATION_CONFIG",
+                "value": config_json,
+                "type": "encrypted",
+                "target": ["production", "preview", "development"]
+            }
+
+            # 删除旧的配置
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                envs = response.json()
+                for env in envs.get('envs', []):
+                    if env['key'] == 'NAVIGATION_CONFIG':
+                        delete_url = f"{url}/{env['id']}"
+                        requests.delete(delete_url, headers=headers)
+
+            # 添加新的配置
+            response = requests.post(url, headers=headers, json=data)
+            if response.status_code not in [200, 201]:
+                raise Exception(f"Failed to save config: {response.text}")
+        return True
+    except Exception as e:
+        print(f"Error saving config: {str(e)}")
+        return False
 
 # SEO相关路由
 @app.route('/robots.txt')
@@ -183,11 +227,16 @@ def admin_save_config():
         return redirect(url_for('admin_login'))
     try:
         config = json.loads(request.form.get('config'))
-        save_config(config)
-        return render_template('admin/dashboard.html', 
-                             config=json.dumps(config, ensure_ascii=False, indent=4),
-                             site_name=config.get('site_name', SITE_NAME),
-                             success='配置已保存')
+        if save_config(config):
+            return render_template('admin/dashboard.html', 
+                                config=json.dumps(config, ensure_ascii=False, indent=4),
+                                site_name=config.get('site_name', SITE_NAME),
+                                success='配置已保存')
+        else:
+            return render_template('admin/dashboard.html', 
+                                config=json.dumps(config, ensure_ascii=False, indent=4),
+                                site_name=config.get('site_name', SITE_NAME),
+                                error='保存失败')
     except json.JSONDecodeError:
         return render_template('admin/dashboard.html', 
                              config=request.form.get('config'),
