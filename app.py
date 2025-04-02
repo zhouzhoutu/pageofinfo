@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session, Response
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime
@@ -14,9 +12,9 @@ import requests
 load_dotenv()
 
 app = Flask(__name__, 
-           static_url_path='',  # 设置空的静态文件URL路径
-           static_folder='static',  # 静态文件目录
-           template_folder='templates')  # 模板文件目录
+           static_url_path='',
+           static_folder='static',
+           template_folder='templates')
 
 # 基础配置
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key')
@@ -65,11 +63,9 @@ def update_vercel_env(new_password_hash):
         'Content-Type': 'application/json',
     }
     
-    # Vercel API endpoint
+    url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env'
     if VERCEL_TEAM_ID:
-        url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env?teamId={VERCEL_TEAM_ID}'
-    else:
-        url = f'https://api.vercel.com/v9/projects/{VERCEL_PROJECT_ID}/env'
+        url += f'?teamId={VERCEL_TEAM_ID}'
 
     data = {
         "key": "ADMIN_PASSWORD",
@@ -128,7 +124,6 @@ def save_config(config):
                 "target": ["production", "preview", "development"]
             }
 
-            # 删除旧的配置
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 envs = response.json()
@@ -137,7 +132,6 @@ def save_config(config):
                         delete_url = f"{url}/{env['id']}"
                         requests.delete(delete_url, headers=headers)
 
-            # 添加新的配置
             response = requests.post(url, headers=headers, json=data)
             if response.status_code not in [200, 201]:
                 raise Exception(f"Failed to save config: {response.text}")
@@ -176,11 +170,15 @@ def sitemap():
 # 路由：前端页面
 @app.route('/')
 def index():
-    config = load_config()
-    return render_template('index.html', 
-                         categories=config.get('categories', []),
-                         site_name=config.get('site_name', SITE_NAME),
-                         site_description=config.get('site_description', SITE_DESCRIPTION))
+    try:
+        config = load_config()
+        return render_template('index.html', 
+                            categories=config.get('categories', []),
+                            site_name=config.get('site_name', SITE_NAME),
+                            site_description=config.get('site_description', SITE_DESCRIPTION))
+    except Exception as e:
+        print(f"Error in index route: {str(e)}")
+        return f"An error occurred: {str(e)}", 500
 
 @app.route('/finance-nav')
 def finance_nav():
@@ -198,7 +196,6 @@ def admin_login():
         password = request.form.get('password')
         stored_password = get_admin_password()
         
-        # 验证密码
         if hash_password(password) == stored_password or password == stored_password:
             session['admin'] = True
             return redirect(url_for('admin_dashboard'))
@@ -212,7 +209,7 @@ def admin_logout():
     session.pop('admin', None)
     return redirect(url_for('index'))
 
-@app.route('/admin')
+@app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('admin'):
         return redirect(url_for('admin_login'))
