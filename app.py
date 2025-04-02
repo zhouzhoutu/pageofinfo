@@ -62,7 +62,7 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('admin_dashboard'))
-        flash('Invalid username or password')
+        flash('请输入正确的用户名或密码')
     return render_template('admin/login.html')
 
 # 路由：管理后台
