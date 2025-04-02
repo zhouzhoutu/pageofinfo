@@ -44,7 +44,8 @@ def load_user(user_id):
 # 路由：前端页面
 @app.route('/')
 def index():
-    return redirect(url_for('finance_nav'))
+    categories = Category.query.order_by(Category.order).all()
+    return render_template('index.html', categories=categories)
 
 @app.route('/finance-nav')
 def finance_nav():
